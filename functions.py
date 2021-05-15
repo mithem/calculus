@@ -55,6 +55,9 @@ class FunctionAddition(Function):
         self.f1 = f1
         self.f2 = f2
 
+    def __str__(self):
+        return f"{self.f1} + {self.f2}"
+
 class FunctionSum(Function):
     """Many functions added together"""
     functions: List[Function]
@@ -78,7 +81,7 @@ class FunctionSum(Function):
         self.functions = functions
 
     def __str__(self):
-        return f"<FunctionSum([{ ', '.join([str(f) for f in self.functions]) }])>"
+        return f"({' + '.join([str(f) for f in self.functions])})"
 
 class FunctionMultiplication(Function):
     """Two functions multiplied with each other"""
@@ -91,16 +94,6 @@ class FunctionMultiplication(Function):
         except TypeError:
             return None
     # h_method doesn't have to be overridden as slope can be derived from overridden `.evaluate`
-
-    def __init__(self, f1: Union[float, Function], f2: Union[float, Function]):
-        if issubclass(type(f1), Function):
-            self.f1 = f1
-        else:
-            self.f1 = Constant(f1)
-        if issubclass(type(f2), Function):
-            self.f2 = f2
-        else:
-            self.f2 = Constant(f2)
 
     def get_indefinite_integral(self):
         """S = Integral
@@ -131,10 +124,22 @@ class FunctionMultiplication(Function):
             elif self.f2.constant == 1:
                 return self.f1.get_derivative()
         else:
-            return FunctionSum(FunctionMultiplication(self.f1.get_derivative(), self.f2), FunctionMultiplication(self.f1, self.f2.get_derivative()))
+            return FunctionSum(FunctionMultiplication(self.f1.get_derivative(),
+                    self.f2), FunctionMultiplication(self.f1,
+                    self.f2.get_derivative()))
+
+    def __init__(self, f1: Union[float, Function], f2: Union[float, Function]):
+        if issubclass(type(f1), Function):
+            self.f1 = f1
+        else:
+            self.f1 = Constant(f1)
+        if issubclass(type(f2), Function):
+            self.f2 = f2
+        else:
+            self.f2 = Constant(f2)
 
     def __str__(self):
-        return f"<FunctionMult(f1: {self.f1}, f2: {self.f2})>"
+        return f"({self.f1}) * ({self.f2})"
 
 class Constant(Function):
     constant: float
@@ -142,17 +147,17 @@ class Constant(Function):
     def evaluate(self, x: float) -> float:
         return self.constant
 
-    def __init__(self, constant: float):
-        self.constant = constant
-
     def get_derivative(self):
         return self.__init__(0)
 
     def get_indefinite_integral(self):
         return Polynomial({1: self.constant})
 
+    def __init__(self, constant: float):
+        self.constant = constant
+
     def __str__(self):
-        return f"<Constant({self.constant})>"
+        return str(constant)
 
 class Linear(Function):
     constant: float
@@ -170,7 +175,7 @@ class Linear(Function):
         return Polynomial({2: self.constant / 2})
 
     def __str__(self):
-        return f"<Linear({self.constant}x)>"
+        return f"{constant}x"
 
 class Polynomial(Function):
     """Examples:
@@ -231,6 +236,20 @@ class Polynomial(Function):
             return Polynomial(constants)
         return FunctionAddition(Polynomial(constants), ln)
 
+    def __str__(self):
+        s = ""
+        first = True
+        insert_minus = False
+        for key, value in self.constants.items():
+            if value == 0:
+                continue
+            operator = " + " if value > 0 else " - "
+            s += operator + str(abs(value)) + "x^" + str(key)
+            if first and value < 0:
+                insert_minus = True
+            first = False
+        return ("-" if insert_minus else "") + s[3:]
+
 class PolynomialAddition(FunctionAddition):
     f1: Polynomial
     f2: Polynomial
@@ -250,6 +269,9 @@ class PolynomialAddition(FunctionAddition):
 
     def get_nth_indefinite_integral(self, n: int):
         return self.__init__(f1.get_nth_indefinite_integral(n), f2.get_nth_indefinite_integral(n))
+
+    def __str__(self):
+        return f"{self.f1} + {self.f2}"  # no unnecessary parantheses
 
 class PolynomialMultiplication(FunctionMultiplication):
     f1: Polynomial
@@ -272,6 +294,9 @@ class e_function(Function):
     def get_derivative(self):
         return self
 
+    def __str__(self):
+        return "e^x"
+
 class natural_log(Function):
     """ln(x), where x is a number"""
 
@@ -291,6 +316,9 @@ class natural_log(Function):
         if n == 0:
             return self
         return self.get_derivative().get_nth_indefinite_integral(n - 1)
+
+    def __str__(self):
+        return "ln(x)"
 
 class sin(Function):
 
