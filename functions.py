@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Union, Dict
 import numpy as np
 
 _standard_h = 0.001
@@ -191,7 +191,7 @@ class Polynomial(Function):
     `
     => -2x⁻³ + 1 + 2x²
     """
-    constants: dict[int, float]
+    constants: Dict[int, float]
 
     def evaluate(self, x: float) -> float:
         try:
@@ -202,7 +202,7 @@ class Polynomial(Function):
         except Exception:
             return None
 
-    def __init__(self, constants: dict[int, float]):
+    def __init__(self, constants: Dict[int, float]):
         self.constants = {}
         for key in sorted(constants):
             self.constants[key] = constants[key]
