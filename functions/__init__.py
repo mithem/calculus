@@ -15,41 +15,50 @@ class Function:
         dy = self.evaluate(x + hh) - self.evaluate(x - hh)
         return dy / h
 
+    def get_nth_derivative(self, n: int):
+        if n == 0:
+            return self
+        return self.get_derivative().get_nth_derivative(n - 1)
 
-    class Addition(Function):
-        f1: Function
-        f2: Function
+    def get_nth_indefinite_integral(self, n: int):
+        if n == 0:
+            return self
+        return self.get_indefinite_integral().get_nth_indefinite_integral(n - 1)
 
-        def evaluate(self, x: float) -> float:
-            return f1.evaluate(x) + f2.evaluate(x)
-        # h_method doesn't have to be overridden as slope can be derived from overridden `.evaluate`
+class FunctionAddition(Function):
+    f1: Function
+    f2: Function
 
-        def __init__(self, f1: Function, f2: Function):
-            self.f1 = f1
-            self.f2 = f2
+    def evaluate(self, x: float) -> float:
+        return f1.evaluate(x) + f2.evaluate(x)
+    # h_method doesn't have to be overridden as slope can be derived from overridden `.evaluate`
 
-    class Multiplication(Function):
-        f1: Function
-        f2: Function
+    def __init__(self, f1: Function, f2: Function):
+        self.f1 = f1
+        self.f2 = f2
 
-        def evaluate(self, x: float) -> float:
-            return f1.evaluate(x) * f2.evaluate(x)
-        # h_method doesn't have to be overridden as slope can be derived from overridden `.evaluate`
+class FunctionMultiplication(Function):
+    f1: Function
+    f2: Function
 
-        def __init__(self, f1: Function, f2: Function):
-            self.f1 = f1
-            self.f2 = f2
+    def evaluate(self, x: float) -> float:
+        return f1.evaluate(x) * f2.evaluate(x)
+    # h_method doesn't have to be overridden as slope can be derived from overridden `.evaluate`
 
-        def get_indefinite_integral(self):
-            """S = Integral
-            S(u * v) = [U * v] - S(U * v') or
-            S(u * v) = [u * V] - S(u' * V)
-            """
-            try:
-                return Addition(self.__init__(f1.get_indefinite_integral(), f2), self.__init__(Polynomial([-1]), self.__init__(f1.get_indefinite_integral(), f2.get_derivative()).get_indefinite_integral())
-            except Exception as e:
-                print(e + " (no worries for now)")
-                return Addition(self.__init__(f1, f2.get_indefinite_integral()), self.__init__(Polynomial([-1]), self.__init__(f1.get_derivative(), f2.get_indefinite_integral()).get_indefinite_integral())
+    def __init__(self, f1: Function, f2: Function):
+        self.f1 = f1
+        self.f2 = f2
+
+    def get_indefinite_integral(self):
+        """S = Integral
+        S(u * v) = [U * v] - S(U * v') or
+        S(u * v) = [u * V] - S(u' * V)
+        """
+        try:
+            return FunctionAddition(self.__init__(f1.get_indefinite_integral(), f2), self.__init__(Polynomial([-1]), self.__init__(f1.get_indefinite_integral(), f2.get_derivative()).get_indefinite_integral()))
+        except Exception as e:
+            print(e + " (no worries for now)")
+            return FunctionAddition(self.__init__(f1, f2.get_indefinite_integral()), self.__init__(Polynomial([-1]), self.__init__(f1.get_derivative(), f2.get_indefinite_integral()).get_indefinite_integral()))
 
 class Constant(Function):
     constant: float
@@ -70,70 +79,144 @@ class Linear(Function):
         self.constant = constant
 
 class Polynomial(Function):
-    constants: [float]
+    """Examples:
+    `constants = {
+        -2: 1,
+        -1: 3,
+        0: 5,
+        1: -1.5,
+        2: 0.5
+    }`
+    => x⁻² + 3x⁻¹ + 5x⁰ -1.5x¹ + 0.5x²
+
+    `constants = {
+        -3: -2,
+        0: 1,
+        2: 2
+    }
+    `
+    => -2x⁻³ + 1 + 2x²
+    """
+    constants: dict[int, float]
 
     def evaluate(self, x: float) -> float:
-        s = 0
-        for i in range(len(self.constants)):
-            s += self.constants[i] * pow(x, i)
-        return s
+        try:
+            s = 0
+            for key, value in self.constants.items():
+                s += value * x ** key
+            return s
+        except Exception:
+            return None
 
-    def __init__(self, constants: List[float]):
-        self.constants = constants
+    def __init__(self, constants: dict[int, float]):
+        self.constants = {}
+        for key in sorted(constants):
+            self.constants[key] = constants[key]
 
     def get_derivative(self):
-        constants = self.constants[1:]
+        constants = self.constants.copy()
+        keys = list(constants.keys())
         for i in range(len(constants)):
-            constants[i] *= i + 1
+            tmp = constants[keys[i]]
+            del constants[keys[i]]
+            if not keys[i] == 0: # f(x)' = (g(x) + c)' = g(x)'
+                constants[keys[i] - 1] = tmp * keys[i]
         return Polynomial(constants)
 
     def get_indefinite_integral(self):
-        constants = [0] + self.constants
-        for i in range(1, len(constants)):
-            constants[i] /= i
+        constants = self.constants.copy()
+        keys = list(constants.keys())
+        for i in range(len(constants)):
+            tmp = constants[keys[i]]
+            if keys[i] == -1:
+                return natural_log(constants[keys[i]])
+            del constants[keys[i]]
+            constants[keys[i] + 1] = tmp * keys[i]
         return Polynomial(constants)
+
+class PolynomialAddition(FunctionAddition):
+    f1: Polynomial
+    f2: Polynomial
+
+    def __init__(self, f1: Polynomial, f2: Polynomial):
+        self.f1 = f1
+        self.f2 = f2
+
+    def get_derivative(self):
+        return self.__init__(f1.get_derivative(), f2.get_derivative())
+
+    def get_indefinite_integral(self):
+        return self.__init__(f1.get_indefinite_integral(), f2.get_indefinite_integral())
 
     def get_nth_derivative(self, n: int):
-        constants = self.constants[n:]
-        for i in range(1, len(constants)):
-            constants[i] *= np.math.factorial(i)
-        return Polynomial(constants)
+        return self.__init__(f1.get_nth_derivative(n), f2.get_nth_derivative(n))
 
     def get_nth_indefinite_integral(self, n: int):
-        constants = n * [0] + self.constants
-        for i in range(1, len(constants)):
-            constants[i] /= np.math.factorial(i)
-        return Polynomial(constants)
+        return self.__init__(f1.get_nth_indefinite_integral(n), f2.get_nth_indefinite_integral(n))
 
-    class Addition(Function.Addition):
-        f1: Polynomial
-        f2: Polynomial
+class PolynomialMultiplication(FunctionMultiplication):
+    f1: Polynomial
+    f2: Polynomial
 
-        def __init__(self, f1: Polynomial, f2: Polynomial):
-            self.f1 = f1
-            self.f2 = f2
+    def __init__(self, f1: Polynomial, f2: Polynomial):
+        self.f1 = f1
+        self.f2 = f2
 
-        def get_derivative(self):
-            return self.__init__(f1.get_derivative(), f2.get_derivative())
+    def get_derivative(self):
+        """(u * v)' = u' * v + u * v'"""
+        return PolynomialAddition(self.__init__(f1.get_derivative(), f2), self.__init__(f1, f2.get_derivative()))
 
-        def get_indefinite_integral(self):
-            return self.__init__(f1.get_indefinite_integral(), f2.get_indefinite_integral())
+class e_function(Function):
+    """ce^f, where c, f is a function"""
+    c: Function
+    f: Function
 
-        def get_nth_derivative(self, n: int):
-            return self.__init__(f1.get_nth_derivative(n), f2.get_nth_derivative(n))
+    def __init__(self, c: Union[float, Function] = 1, f: Union[float, Function] = 1):
+        if issubclass(type(c), Function):
+            self.c = c
+        else:
+            self.c = Constant(c)
+        if issubclass(type(f), Function):
+            self.f = f
+        else:
+            self.f = Linear(f)
 
-        def get_nth_indefinite_integral(self, n: int):
-            return self.__init__(f1.get_nth_indefinite_integral(n), f2.get_nth_indefinite_integral(n))
+    def evaluate(self, x: float):
+        return self.c.evaluate(x) * pow(np.e, self.f.evaluate(x))
 
-    class Multiplication(Function.Multiplication):
-        f1: Polynomial
-        f2: Polynomial
+    def get_derivative(self):
+        return e_function(Function.Multiplication(self, f.get_derivative()))
 
-        def __init__(self, f1: Polynomial, f2: Polynomial):
-            self.f1 = f1
-            self.f2 = f2
+class natural_log(Function):
+    """c * ln(f), where c, f is a function"""
+    c: Function
+    f: Function
 
-        def get_derivative(self):
-            """(u * v)' = u' * v + u * v'"""
-            return Polynomial.Addition(self.__init__(f1.get_derivative(), f2), self.__init__(f1, f2.get_derivative()))
+    def __init__(self, c: Union[float, Function] = 1, f: Union[float, Function] = 1):
+        if issubclass(type(c), Function):
+            self.c = c
+        else:
+            self.c = Constant(c)
+        if issubclass(type(f), Function):
+            self.f = f
+        else:
+            self.f = Linear(f)
 
+    def evaluate(self, x: float):
+        try:
+            return self.c.evaluate(x) * np.math.log(self.f.evaluate(x), np.e)
+        except ValueError as e:
+            if "math domain error" in str(e):
+                return np.nan
+
+    def get_derivative(self):
+        if issubclass(type(c), Constant):
+            raise NotImplementedError()
+        return FunctionAddition(FunctionMultiplication(c.get_derivative(), natural_log(1, f)), FunctionMultiplication(Polynomial({-1: 1}), f), f.get_derivative())
+
+    def get_indefinite_integral(self, n: int):
+        if n > 1:
+            raise NotImplementedError()
+        if n == 0:
+            return self
+        return self.get_derivative().get_nth_indefinite_integral(n - 1)
