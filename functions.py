@@ -57,7 +57,7 @@ class FunctionAddition(Function):
 
 class FunctionSum(Function):
     """Many functions added together"""
-    functions: list[Function]
+    functions: List[Function]
 
     def evaluate(self, x: float) -> float:
         try:
@@ -74,7 +74,7 @@ class FunctionSum(Function):
     def get_indefinite_integral(self):
         return self.__init__([f.get_indefinite_integral() for f in self.functions])
 
-    def __init__(self, functions: list[Function]):
+    def __init__(self, functions: List[Function]):
         self.functions = functions
 
     def __str__(self):
