@@ -66,7 +66,7 @@ except IndexError:
 f1 = cos()
 
 t1 = time.time()
-f2 = f1.get_taylor_polynomial(n)
+f2 = f1.get_taylor_polynomial(n, np.pi)
 t2 = time.time()
 
 print(f"{t2 - t1} seconds")

@@ -38,10 +38,37 @@ class Function:
         for i in range(n + 1):
             d = self.get_nth_derivative(i)
             constants[i] = d.evaluate(x) / np.math.factorial(i)
-        return Polynomial(constants)
+        taylor_polynomial = Polynomial(constants)
+        if x != 0:
+            return ChainedFunction(taylor_polynomial, FunctionSubtraction(Linear(1), Constant(x)))
+        return taylor_polynomial
 
     def get_tex_representation(self):
         return str(self)
+
+class ChainedFunction(Function):
+    """f(g(x))"""
+    f1: Function
+    f2: Function
+
+    def evaluate(self, x: float) -> float:
+        try:
+            return self.f1.evaluate(self.f2.evaluate(x))
+        except TypeError:
+            return None
+    
+    def get_derivative(self):
+        return FunctionMultiplication(ChainedFunction(f1.get_derivative(), f2), f2.get_derivative())
+
+    def get_tex_representation(self):
+        return str(self)
+
+    def __init__(self, f1: Function, f2: Function):
+        self.f1 = f1
+        self.f2 = f2
+
+    def __str__(self):
+        return str(self.f1).replace("x", str(self.f2))
 
 class FunctionAddition(Function):
     """Two functions added together"""
@@ -92,6 +119,27 @@ class FunctionSum(Function):
 
     def __str__(self):
         return f"({' + '.join([str(f) for f in self.functions])})"
+
+class FunctionSubtraction(Function):
+    """A function subtracted from another (f1 - f2)"""
+    f1: Function
+    f2: Function
+
+    def evaluate(self, x: float) -> float:
+        try:
+            return self.f1.evaluate(x) - self.f2.evaluate(x)
+        except TypeError:
+            return None
+
+    def get_tex_representation(self):
+        return f"{self.f1.get_tex_representation()} - ({self.f2.get_tex_representation()})"
+
+    def __init__(self, f1: Function, f2: Function):
+        self.f1 = f1
+        self.f2 = f2
+
+    def __str__(self):
+        return f"{self.f1} - ({self.f2})"
 
 class FunctionMultiplication(Function):
     """Two functions multiplied with each other"""
@@ -173,7 +221,7 @@ class Constant(Function):
         self.constant = constant
 
     def __str__(self):
-        return str(constant)
+        return str(self.constant)
 
 class Linear(Function):
     constant: float
