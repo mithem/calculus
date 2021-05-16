@@ -61,14 +61,14 @@ class ChainedFunction(Function):
         return FunctionMultiplication(ChainedFunction(f1.get_derivative(), f2), f2.get_derivative())
 
     def get_tex_representation(self):
-        return str(self)
+        return self.f1.get_tex_representation().replace("x", f"({self.f2.get_tex_representation()})")
 
     def __init__(self, f1: Function, f2: Function):
         self.f1 = f1
         self.f2 = f2
 
     def __str__(self):
-        return str(self.f1).replace("x", str(self.f2))
+        return str(self.f1).replace("x", f"({self.f2})")
 
 class FunctionAddition(Function):
     """Two functions added together"""
@@ -132,6 +132,8 @@ class FunctionSubtraction(Function):
             return None
 
     def get_tex_representation(self):
+        if type(self.f2) == Constant:
+            return f"{self.f1.get_tex_representation()} - {self.f2.get_tex_representation()}"
         return f"{self.f1.get_tex_representation()} - ({self.f2.get_tex_representation()})"
 
     def __init__(self, f1: Function, f2: Function):
@@ -139,6 +141,8 @@ class FunctionSubtraction(Function):
         self.f2 = f2
 
     def __str__(self):
+        if type(self.f2) == Constant:
+            return f"{self.f1} - {self.f2}"
         return f"{self.f1} - ({self.f2})"
 
 class FunctionMultiplication(Function):
@@ -242,6 +246,10 @@ class Linear(Function):
         self.constant = constant
 
     def __str__(self):
+        if self.constant == 1:
+            return "x"
+        elif self.constant == -1:
+            return "-x"
         return f"{self.constant}x"
 
 class Polynomial(Function):
@@ -301,11 +309,19 @@ class Polynomial(Function):
     def get_tex_representation(self):
         s = str(self)
         n = 0
-        matches = re.finditer(r"x\^(?P<exponent>[\w\-+\.]+)", s)
-        for m in matches:
+        x_s = re.finditer(r"x\^(?P<exponent>[\w\-+\.]+)", s)
+
+        for m in x_s:
             span = m.span()
             s = s.replace(s[span[0] + n:span[1] + n], "x^{" + s[span[0] + n + 2: span[1] + n] + "}")
             n += 2
+
+        e_s = re.finditer(r"(?P<coefficient>-?\d\.\d+)e(?P<exponent>(\+|\-)\d+)", s)
+        for m in e_s:
+            groups = m.groupdict()
+            c = groups["coefficient"]
+            e = groups["exponent"]
+            s = s.replace(f"{c}e{e}", c + r"\cdot 10^{" + e + "}")
         return s
 
     def __init__(self, constants: Dict[int, float]):
@@ -321,7 +337,11 @@ class Polynomial(Function):
             if value == 0:
                 continue
             operator = " + " if value > 0 else " - "
-            s += operator + str(abs(value)) + "x^" + str(key)
+            v = str(abs(value))
+            if key == 0:
+                s+= operator + v
+                continue
+            s += operator + v + "x^" + str(key)
             if first and value < 0:
                 insert_minus = True
             first = False
