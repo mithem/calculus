@@ -4,6 +4,7 @@ import re
 
 _standard_h = 0.001
 
+
 class Function:
 
     def evaluate(self, x: float) -> float:
@@ -29,7 +30,8 @@ class Function:
         if n == 0:
             return self
         try:
-            return self.get_indefinite_integral().get_nth_indefinite_integral(n - 1)
+            first_der = self.get_indefinite_integral()
+            return first_der.get_nth_indefinite_integral(n - 1)
         except TypeError:
             return None
 
@@ -40,11 +42,13 @@ class Function:
             constants[i] = d.evaluate(x) / np.math.factorial(i)
         taylor_polynomial = Polynomial(constants)
         if x != 0:
-            return ChainedFunction(taylor_polynomial, FunctionSubtraction(Linear(1), Constant(x)))
-        return taylor_polynomial
+            return ChainedFunction(taylor_polynomial,
+                                   FunctionSubtraction(Linear(1), Constant(x)))
+            return taylor_polynomial
 
     def get_tex_representation(self):
         return str(self)
+
 
 class ChainedFunction(Function):
     """f(g(x))"""
@@ -56,12 +60,14 @@ class ChainedFunction(Function):
             return self.f1.evaluate(self.f2.evaluate(x))
         except TypeError:
             return None
-    
+
     def get_derivative(self):
-        return FunctionMultiplication(ChainedFunction(f1.get_derivative(), f2), f2.get_derivative())
+        return FunctionMultiplication(ChainedFunction(
+            self.f1.get_derivative(), self.f2), self.f2.get_derivative())
 
     def get_tex_representation(self):
-        return self.f1.get_tex_representation().replace("x", f"({self.f2.get_tex_representation()})")
+        return self.f1.get_tex_representation().replace(
+            "x", f"({self.f2.get_tex_representation()})")
 
     def __init__(self, f1: Function, f2: Function):
         self.f1 = f1
@@ -69,6 +75,7 @@ class ChainedFunction(Function):
 
     def __str__(self):
         return str(self.f1).replace("x", f"({self.f2})")
+
 
 class FunctionAddition(Function):
     """Two functions added together"""
@@ -80,10 +87,29 @@ class FunctionAddition(Function):
             return self.f1.evaluate(x) + self.f2.evaluate(x)
         except TypeError:
             return None
-    # h_method doesn't have to be overridden as slope can be derived from overridden `.evaluate`
+    # h_method doesn't have to be overridden as slope can be derived from
+    # overridden `.evaluate`
 
     def get_tex_representation(self):
-        return f"{self.f1.get_tex_representation()} + {self.f2.get_tex_representation()}"
+        return f"{self.f1.get_tex_representation()} +\
+     {self.f2.get_tex_representation()}"
+
+    def get_derivative(self):
+        return FunctionAddition(self.f1.get_derivative(),
+                                self.f2.get_derivative())
+
+    def get_indefinite_integral(self):
+        return FunctionAddition(
+            self.f1.get_indefinite_integral(),
+            self.f2.get_indefinite_integral())
+
+    def get_nth_derivative(self, n: int):
+        return FunctionAddition(self.f1.get_nth_derivative(
+            n), self.f2.get_nth_derivative(n))
+
+    def get_nth_indefinite_integral(self, n: int):
+        return FunctionAddition(self.f1.get_nth_indefinite_integral(n),
+                                self.f2.get_nth_indefinite_integral(n))
 
     def __init__(self, f1: Function, f2: Function):
         self.f1 = f1
@@ -91,6 +117,7 @@ class FunctionAddition(Function):
 
     def __str__(self):
         return f"{self.f1} + {self.f2}"
+
 
 class FunctionSum(Function):
     """Many functions added together"""
@@ -104,21 +131,24 @@ class FunctionSum(Function):
             return s
         except TypeError:
             return None
-    
+
     def get_derivative(self):
         return self.__init__([f.get_derivative() for f in self.functions])
 
     def get_indefinite_integral(self):
-        return self.__init__([f.get_indefinite_integral() for f in self.functions])
+        return self.__init__([f.get_indefinite_integral()
+                              for f in self.functions])
 
     def get_tex_representation(self):
-        return f"({' + '.join([f.get_latex_representation() for f in self.functions])})"
+        return "(" + ' + '.join([f.get_latex_representation() for f in
+                                 self.functions]) + ")"
 
     def __init__(self, functions: List[Function]):
         self.functions = functions
 
     def __str__(self):
         return f"({' + '.join([str(f) for f in self.functions])})"
+
 
 class FunctionSubtraction(Function):
     """A function subtracted from another (f1 - f2)"""
@@ -132,18 +162,21 @@ class FunctionSubtraction(Function):
             return None
 
     def get_tex_representation(self):
-        if type(self.f2) == Constant:
-            return f"{self.f1.get_tex_representation()} - {self.f2.get_tex_representation()}"
-        return f"{self.f1.get_tex_representation()} - ({self.f2.get_tex_representation()})"
+        if isinstance(self.f2, Constant):
+            return f"{self.f1.get_tex_representation()} -\
+                     {self.f2.get_tex_representation()}"
+        return f"{self.f1.get_tex_representation()} -\
+                 ({self.f2.get_tex_representation()})"
 
     def __init__(self, f1: Function, f2: Function):
         self.f1 = f1
         self.f2 = f2
 
     def __str__(self):
-        if type(self.f2) == Constant:
+        if isinstance(self.f2, Constant):
             return f"{self.f1} - {self.f2}"
         return f"{self.f1} - ({self.f2})"
+
 
 class FunctionMultiplication(Function):
     """Two functions multiplied with each other"""
@@ -155,7 +188,8 @@ class FunctionMultiplication(Function):
             return self.f1.evaluate(x) * self.f2.evaluate(x)
         except TypeError:
             return None
-    # h_method doesn't have to be overridden as slope can be derived from overridden `.evaluate`
+    # h_method doesn't have to be overridden as slope can be derived from
+    # overridden `.evaluate`
 
     def get_indefinite_integral(self):
         """S = Integral
@@ -163,35 +197,64 @@ class FunctionMultiplication(Function):
         S(u * v) = [u * V] - S(u' * V)
         """
         try:
-            return FunctionAddition(self.__init__(self.f1.get_indefinite_integral(), self.f2), self.__init__(Polynomial([-1]), self.__init__(self.f1.get_indefinite_integral(), self.f2.get_derivative()).get_indefinite_integral()))
+            return FunctionAddition(
+                FunctionMultiplication(
+                    self.f1.get_indefinite_integral(),
+                    self.f2
+                ),
+                FunctionMultiplication(
+                    Polynomial([-1]),
+                    FunctionMultiplication(
+                        self.f1.get_indefinite_integral(),
+                        self.f2.get_derivative()
+                    )
+                    .get_indefinite_integral()
+                )
+            )
         except Exception as e:
             print(e + " (no worries for now)")
-            return FunctionAddition(self.__init__(self.f1, self.f2.get_indefinite_integral()), self.__init__(Polynomial([-1]), self.__init__(self.f1.get_derivative(), self.f2.get_indefinite_integral()).get_indefinite_integral()))
+            return FunctionAddition(
+                FunctionMultiplication(
+                    self.f1,
+                    self.f2.get_indefinite_integral()),
+                FunctionMultiplication(
+                    Polynomial(
+                        [-1]),
+                    FunctionMultiplication(
+                        self.f1.get_derivative(),
+                        self.f2.get_indefinite_integral()
+                    )
+                    .get_indefinite_integral()
+                )
+            )
 
     def get_derivative(self):
+        """(u * v)' = u' * v + u * v'"""
         if issubclass(type(self.f1), Constant):
             if self.f1.constant == -1:
-                if type(self.f2) == sin:
-                    return FunctionMultiplication(-1, cos())
-                elif type(self.f2) == cos:
-                    return sin()
+                if isinstance(self.f2, Sin):
+                    return FunctionMultiplication(-1, Cos())
+                elif isinstance(self.f2, Cos):
+                    return Sin()
             elif self.f1.constant == 1:
                 return self.f2.get_derivative()
         elif issubclass(type(self.f2), Constant):
             if self.f2.constant == -1:
-                if type(self.f1) == sin:
-                    return FunctionMultiplication(-1, cos())
-                elif type(self.f1) == cos:
-                    return sin()
+                if isinstance(self.f1, Sin):
+                    return FunctionMultiplication(-1, Cos())
+                elif isinstance(self.f1, Cos):
+                    return Sin()
             elif self.f2.constant == 1:
                 return self.f1.get_derivative()
         else:
-            return FunctionSum(FunctionMultiplication(self.f1.get_derivative(),
-                    self.f2), FunctionMultiplication(self.f1,
-                    self.f2.get_derivative()))
+            return FunctionAddition(
+                FunctionMultiplication(
+                    self.f1.get_derivative(), self.f2), FunctionMultiplication(
+                    self.f1, self.f2.get_derivative()))
 
-    def get_tex_representation(self):
-        return rf"({self.f1.get_tex_representation()}) \cdot ({self.f2.get_tex_representation})"
+            def get_tex_representation(self):
+                return rf"({self.f1.get_tex_representation()}) \cdot\
+                         ({self.f2.get_tex_representation})"
 
     def __init__(self, f1: Union[float, Function], f2: Union[float, Function]):
         if issubclass(type(f1), Function):
@@ -205,6 +268,7 @@ class FunctionMultiplication(Function):
 
     def __str__(self):
         return f"({self.f1}) * ({self.f2})"
+
 
 class Constant(Function):
     constant: float
@@ -227,10 +291,11 @@ class Constant(Function):
     def __str__(self):
         return str(self.constant)
 
+
 class Linear(Function):
     constant: float
-    
-    def evaluate(self, x:float) -> float:
+
+    def evaluate(self, x: float) -> float:
         return self.constant * x
 
     def get_derivative(self):
@@ -251,6 +316,7 @@ class Linear(Function):
         elif self.constant == -1:
             return "-x"
         return f"{self.constant}x"
+
 
 class Polynomial(Function):
     """Examples:
@@ -288,7 +354,7 @@ class Polynomial(Function):
         for i in range(len(constants)):
             tmp = constants[keys[i]]
             del constants[keys[i]]
-            if not keys[i] == 0: # f(x)' = (g(x) + c)' = g(x)'
+            if not keys[i] == 0:  # f(x)' = (g(x) + c)' = g(x)'
                 constants[keys[i] - 1] = tmp * keys[i]
         return Polynomial(constants)
 
@@ -299,13 +365,13 @@ class Polynomial(Function):
         for i in range(len(constants)):
             tmp = constants[keys[i]]
             if keys[i] == -1:
-                ln =  FunctionMultiplication(natural_log(), constants[keys[i]])
+                ln = FunctionMultiplication(natural_log(), constants[keys[i]])
             del constants[keys[i]]
             constants[keys[i] + 1] = tmp * keys[i]
         if ln is None:
             return Polynomial(constants)
         return FunctionAddition(Polynomial(constants), ln)
-    
+
     def get_tex_representation(self):
         s = str(self)
         n = 0
@@ -313,10 +379,12 @@ class Polynomial(Function):
 
         for m in x_s:
             span = m.span()
-            s = s.replace(s[span[0] + n:span[1] + n], "x^{" + s[span[0] + n + 2: span[1] + n] + "}")
+            s = s.replace(s[span[0] + n:span[1] + n],
+                          "x^{" + s[span[0] + n + 2: span[1] + n] + "}")
             n += 2
 
-        e_s = re.finditer(r"(?P<coefficient>-?\d\.\d+)e(?P<exponent>(\+|\-)\d+)", s)
+        e_s = re.finditer(
+            r"(?P<coefficient>-?\d\.\d+)e(?P<exponent>(\+|\-)\d+)", s)
         for m in e_s:
             groups = m.groupdict()
             c = groups["coefficient"]
@@ -339,7 +407,7 @@ class Polynomial(Function):
             operator = " + " if value > 0 else " - "
             v = str(abs(value))
             if key == 0:
-                s+= operator + v
+                s += operator + v
                 continue
             s += operator + v + "x^" + str(key)
             if first and value < 0:
@@ -347,43 +415,6 @@ class Polynomial(Function):
             first = False
         return ("-" if insert_minus else "") + s[3:]
 
-class PolynomialAddition(FunctionAddition):
-    f1: Polynomial
-    f2: Polynomial
-
-    def get_derivative(self):
-        return self.__init__(f1.get_derivative(), f2.get_derivative())
-
-    def get_indefinite_integral(self):
-        return self.__init__(f1.get_indefinite_integral(), f2.get_indefinite_integral())
-
-    def get_nth_derivative(self, n: int):
-        return self.__init__(f1.get_nth_derivative(n), f2.get_nth_derivative(n))
-
-    def get_nth_indefinite_integral(self, n: int):
-        return self.__init__(f1.get_nth_indefinite_integral(n), f2.get_nth_indefinite_integral(n))
-
-    def get_tex_representation(self):
-        return str(self)
-
-    def __init__(self, f1: Polynomial, f2: Polynomial):
-        self.f1 = f1
-        self.f2 = f2
-
-    def __str__(self):
-        return f"{self.f1} + {self.f2}"  # no unnecessary parantheses
-
-class PolynomialMultiplication(FunctionMultiplication):
-    f1: Polynomial
-    f2: Polynomial
-
-    def get_derivative(self):
-        """(u * v)' = u' * v + u * v'"""
-        return PolynomialAddition(self.__init__(f1.get_derivative(), f2), self.__init__(f1, f2.get_derivative()))
-
-    def __init__(self, f1: Polynomial, f2: Polynomial):
-        self.f1 = f1
-        self.f2 = f2
 
 class e_function(Function):
     """e^x, where x is a number"""
@@ -396,6 +427,7 @@ class e_function(Function):
 
     def __str__(self):
         return "e^x"
+
 
 class natural_log(Function):
     """ln(x), where x is a number"""
@@ -420,36 +452,39 @@ class natural_log(Function):
     def __str__(self):
         return "ln(x)"
 
-class sin(Function):
+
+class Sin(Function):
 
     def evaluate(self, x: float) -> float:
         return np.math.sin(x)
 
     def get_derivative(self):
-        return cos()
+        return Cos()
 
     def get_indefinite_integral(self):
-        return FunctionMultiplication(-1, cos())
+        return FunctionMultiplication(-1, Cos())
 
     def __str__(self):
         return "sin(x)"
 
-class cos(Function):
+
+class Cos(Function):
 
     def evaluate(self, x: float) -> float:
         return np.math.cos(x)
 
     def get_derivative(self):
-        return FunctionMultiplication(-1, sin())
+        return FunctionMultiplication(-1, Sin())
 
     def get_indefinite_integral(self):
-        return sin()
+        return Sin()
 
     def __str__(self):
         return "cos(x)"
 
-class tan(Function):
-    
+
+class Tan(Function):
+
     def evaluate(self, x: float) -> float:
         return np.math.tan(x)
 
