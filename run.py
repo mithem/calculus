@@ -49,8 +49,8 @@ def evaluate(f1, f2, min_x: float, max_x: float = None, delta: float = None):
 
     # for this example, you'll need to configure the matplotlib window to use
     # sensible y-axis marks
-    plt.plot(x_1, l1, label="f(x)")
-    plt.plot(x_2, l2, label="f'(x)")
+    plt.plot(x_1, l1, label="$%s$"%f1.get_tex_representation())
+    plt.plot(x_2, l2, label="$%s$"%f2.get_tex_representation())
 
     plt.legend()
     plt.show()

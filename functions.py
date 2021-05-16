@@ -1,5 +1,6 @@
 from typing import List, Union, Dict
 import numpy as np
+import re
 
 _standard_h = 0.001
 
@@ -39,6 +40,9 @@ class Function:
             constants[i] = d.evaluate(x) / np.math.factorial(i)
         return Polynomial(constants)
 
+    def get_tex_representation(self):
+        return str(self)
+
 class FunctionAddition(Function):
     """Two functions added together"""
     f1: Function
@@ -50,6 +54,9 @@ class FunctionAddition(Function):
         except TypeError:
             return None
     # h_method doesn't have to be overridden as slope can be derived from overridden `.evaluate`
+
+    def get_tex_representation(self):
+        return f"{self.f1.get_tex_representation()} + {self.f2.get_tex_representation()}"
 
     def __init__(self, f1: Function, f2: Function):
         self.f1 = f1
@@ -76,6 +83,9 @@ class FunctionSum(Function):
 
     def get_indefinite_integral(self):
         return self.__init__([f.get_indefinite_integral() for f in self.functions])
+
+    def get_tex_representation(self):
+        return f"({' + '.join([f.get_latex_representation() for f in self.functions])})"
 
     def __init__(self, functions: List[Function]):
         self.functions = functions
@@ -128,6 +138,9 @@ class FunctionMultiplication(Function):
                     self.f2), FunctionMultiplication(self.f1,
                     self.f2.get_derivative()))
 
+    def get_tex_representation(self):
+        return rf"({self.f1.get_tex_representation()}) \cdot ({self.f2.get_tex_representation})"
+
     def __init__(self, f1: Union[float, Function], f2: Union[float, Function]):
         if issubclass(type(f1), Function):
             self.f1 = f1
@@ -153,6 +166,9 @@ class Constant(Function):
     def get_indefinite_integral(self):
         return Polynomial({1: self.constant})
 
+    def get_tex_representation(self):
+        return str(self)
+
     def __init__(self, constant: float):
         self.constant = constant
 
@@ -165,17 +181,20 @@ class Linear(Function):
     def evaluate(self, x:float) -> float:
         return self.constant * x
 
-    def __init__(self, constant: float):
-        self.constant = constant
-
     def get_derivative(self):
         return Constant(self.constant)
 
     def get_indefinite_integral(self):
         return Polynomial({2: self.constant / 2})
 
+    def get_tex_representation(self):
+        return str(self)
+
+    def __init__(self, constant: float):
+        self.constant = constant
+
     def __str__(self):
-        return f"{constant}x"
+        return f"{self.constant}x"
 
 class Polynomial(Function):
     """Examples:
@@ -207,11 +226,6 @@ class Polynomial(Function):
         except Exception:
             return None
 
-    def __init__(self, constants: Dict[int, float]):
-        self.constants = {}
-        for key in sorted(constants):
-            self.constants[key] = constants[key]
-
     def get_derivative(self):
         constants = self.constants.copy()
         keys = list(constants.keys())
@@ -235,6 +249,21 @@ class Polynomial(Function):
         if ln is None:
             return Polynomial(constants)
         return FunctionAddition(Polynomial(constants), ln)
+    
+    def get_tex_representation(self):
+        s = str(self)
+        n = 0
+        matches = re.finditer(r"x\^(?P<exponent>[\w\-+\.]+)", s)
+        for m in matches:
+            span = m.span()
+            s = s.replace(s[span[0] + n:span[1] + n], "x^{" + s[span[0] + n + 2: span[1] + n] + "}")
+            n += 2
+        return s
+
+    def __init__(self, constants: Dict[int, float]):
+        self.constants = {}
+        for key in sorted(constants):
+            self.constants[key] = constants[key]
 
     def __str__(self):
         s = ""
@@ -254,10 +283,6 @@ class PolynomialAddition(FunctionAddition):
     f1: Polynomial
     f2: Polynomial
 
-    def __init__(self, f1: Polynomial, f2: Polynomial):
-        self.f1 = f1
-        self.f2 = f2
-
     def get_derivative(self):
         return self.__init__(f1.get_derivative(), f2.get_derivative())
 
@@ -270,6 +295,13 @@ class PolynomialAddition(FunctionAddition):
     def get_nth_indefinite_integral(self, n: int):
         return self.__init__(f1.get_nth_indefinite_integral(n), f2.get_nth_indefinite_integral(n))
 
+    def get_tex_representation(self):
+        return str(self)
+
+    def __init__(self, f1: Polynomial, f2: Polynomial):
+        self.f1 = f1
+        self.f2 = f2
+
     def __str__(self):
         return f"{self.f1} + {self.f2}"  # no unnecessary parantheses
 
@@ -277,13 +309,13 @@ class PolynomialMultiplication(FunctionMultiplication):
     f1: Polynomial
     f2: Polynomial
 
-    def __init__(self, f1: Polynomial, f2: Polynomial):
-        self.f1 = f1
-        self.f2 = f2
-
     def get_derivative(self):
         """(u * v)' = u' * v + u * v'"""
         return PolynomialAddition(self.__init__(f1.get_derivative(), f2), self.__init__(f1, f2.get_derivative()))
+
+    def __init__(self, f1: Polynomial, f2: Polynomial):
+        self.f1 = f1
+        self.f2 = f2
 
 class e_function(Function):
     """e^x, where x is a number"""
