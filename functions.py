@@ -140,7 +140,7 @@ class FunctionSum(Function):
                               for f in self.functions])
 
     def get_tex_representation(self):
-        return "(" + ' + '.join([f.get_latex_representation() for f in
+        return "(" + ' + '.join([f.get_tex_representation() for f in
                                  self.functions]) + ")"
 
     def __init__(self, functions: List[Function]):
@@ -268,6 +268,40 @@ class FunctionMultiplication(Function):
 
     def __str__(self):
         return f"({self.f1}) * ({self.f2})"
+
+
+class FunctionProduct(Function):
+    functions: List[Function]
+
+    def evaluate(self, x: float) -> float:
+        try:
+            p = 1
+            for f in self.functions:
+                p *= f.evaluate(x)
+            return p
+        except TypeError:
+            return None
+
+    def get_derivative(self):
+        def inner(l: List[Function]):
+            if len(l) == 1:
+                return l[0].get_derivative()
+            nl = []
+            for i in range(0, len(self.functions), 2):
+                nl.append(FunctionMultiplication(
+                    self.functions[i], self.functions[i + 1]))
+            return inner(nl)
+        return inner(self.functions)
+
+    def get_tex_representation(self):
+        return "(" + r" \cdot ".join([f.get_tex_representation() for f in
+                                      self.functions]) + ")"
+
+    def __init__(self, functions: List[Function]):
+        self.functions = functions
+
+    def __str__(self):
+        return "(" + " * ".join([str(f) for f in self.functions]) + ")"
 
 
 class Constant(Function):
