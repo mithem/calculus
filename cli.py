@@ -1,11 +1,12 @@
-from typing import List
+from typing import List, Union
 from functions import (Function, Constant, Linear, Polynomial, Sin, Cos, Tan,
-                       FunctionSum, FunctionProduct, ChainedFunction)
+                       e_function, natural_log, FunctionSum, FunctionProduct,
+                       ChainedFunction)
 import run
 import argparse
 
 
-def get_function_type(n: int):
+class FunctionType:
     d = {
         0: Constant,
         1: Linear,
@@ -13,8 +14,20 @@ def get_function_type(n: int):
         3: Sin,
         4: Cos,
         5: Tan,
+        6: e_function,
+        7: natural_log
     }
-    return d[n]
+
+    @staticmethod
+    def get_function_type(n: int):
+        return FunctionType.d[n]
+
+    @staticmethod
+    def __str__():
+        s = ""
+        for n, function in FunctionType.d.items():
+            s += f"{n} - {function.__name__}\n"
+        return s
 
 
 def get_composite_function_type(n: int):
@@ -47,7 +60,7 @@ def remove_from_contexts(c: str):
 
 
 def evaluate():
-    if ask("Create & view more functions"):
+    if ask("Create & view more functions", default=False):
         main()
     else:
         min_x = prompt("Min x", expect=float)
@@ -69,8 +82,19 @@ def get_context_str():
     return s
 
 
-def ask(question: str) -> bool:
-    return input(get_context_str() + question + "? [Y/n]> ").lower().startswith("y")
+def ask(question: str, default: Union[bool, None] = None) -> bool:
+    if default is None:
+        extra = "y/n"
+    elif default:
+        extra = "Y/n"
+    else:
+        extra = "y/N"
+    response = input(get_context_str() + question + f"? [{extra}]> ").lower()
+    if default is None:
+        return response.startswith("y")
+    if default:
+        return not response.startswith("n")
+    return response.startswith("y")
 
 
 def prompt(question: str, q=True, expect=str, optional=False, fast=True):
@@ -107,30 +131,43 @@ def menu_linear():
 
 
 def menu_polynomial():
-    global functions
-    contexts.append("POLY")
-    pos = ask("All exponents positive")
-    if pos:
+    def positive_ns():
+        contexts.append("POS-EXP")
         n = prompt("Highest exponent", False, expect=int)
-        constants = {0: prompt("f(0)", False, expect=float)}
         for i in range(1, n + 1):
             c = prompt(f"c for n={i}", False, expect=float, optional=True)
             if c is not None:
                 constants[i] = c
-        f = Polynomial(constants)
+        remove_from_contexts("POS-EXP")
+
+    def negative_ns():
+        contexts.append("NEG-EXP")
+        n = prompt("Number of exponents below 0", False, expect=int)
+        for i in range(-n, 0):
+            c = prompt(f"c for n={i}", False, expect=float, optional=True)
+            if c is not None:
+                constants[i] = c
+        remove_from_contexts("NEG-EXP")
+
+    global functions
+    contexts.append("POLY")
+    constants = {}
+    c0 = prompt("f(0)", False, expect=float, optional=True)
+    if c0 is not None:
+        constants[0] = c0
+    neg = ask("Are there negative exponents", default=False)
+    if neg:
+        negative_ns()
+    positive_ns()
+    f = Polynomial(constants)
     remove_from_contexts("POLY")
     return f
 
 
 def not_composite_function():
-    print("""0 - Constant
-1 - Linear
-2 - Polynomial
-3 - Sin
-4 - Cos
-5 - Tan""")
-    function = get_function_type(
-        prompt("Please choose the kind of function", expect=int))
+    function = FunctionType.get_function_type(
+        prompt(f"{FunctionType.__str__()}Please choose the kind of function",
+               expect=int))
     if function == Constant:
         return menu_constant()
     elif function == Linear:
@@ -143,43 +180,47 @@ def not_composite_function():
         return Cos()
     elif function == Tan:
         return Tan()
+    elif function == e_function:
+        return e_function()
+    elif function == natural_log:
+        return natural_log()
 
 
 def menu_composite_sum():
     contexts.append("SUM")
-    l = []
+    functions = []
     n = prompt("Number of functions to add", expect=int)
     for i in range(n):
         context = f"f{i + 1}"
         contexts.append(context)
-        l.append(not_composite_function())
+        functions.append(not_composite_function())
         remove_from_contexts(context)
     remove_from_contexts("SUM")
-    return FunctionSum(l)
+    return FunctionSum(functions)
 
 
 def menu_composite_product():
     contexts.append("PROD")
-    l = []
+    functions = []
     n = prompt("Number of functions to multiply", expect=int)
     for i in range(n):
         context = f"f{i + 1}"
         contexts.append(context)
-        l.append(not_composite_function())
+        functions.append(not_composite_function())
         remove_from_contexts(context)
     remove_from_contexts("PROD")
-    return FunctionProduct(l)
+    return FunctionProduct(functions)
 
 
 def menu_composite_chain():
     contexts.append("CHAIN")
 
     contexts.append("f1")
-    f1 = not_composite_function()
+    f1 = choose_function()
     remove_from_contexts("f1")
 
     contexts.append("f2")
-    f2 = not_composite_function()
+    f2 = choose_function()
     remove_from_contexts("f2")
 
     remove_from_contexts("CHAIN")
@@ -195,7 +236,15 @@ Chain\nPlease choose the kind of function", expect=int))
         f = menu_composite_product()
     elif function == ChainedFunction:
         f = menu_composite_chain()
-    functions.append(f)
+    return f
+
+
+def choose_function():
+    composite = ask("composite function", default=False)
+    if composite:
+        return composite_function()
+    else:
+        return not_composite_function()
 
 
 def main():
@@ -210,11 +259,7 @@ def main():
         run.run()
         exit(0)
     fast_mode = args.fast
-    composite = ask("composite function")
-    if composite:
-        composite_function()
-    else:
-        functions.append(not_composite_function())
+    functions.append(choose_function())
     evaluate()
 
 

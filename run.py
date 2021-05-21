@@ -54,7 +54,5 @@ def evaluate(functions, min_x: float, max_x: float = None,
 
 def run():
     from functions import Linear, Polynomial, FunctionProduct
-    f = Linear(1)
-    g = FunctionProduct([f, f, f])
-    h = Polynomial({3: 1.5})
-    evaluate([g, h], -5)
+    f = Polynomial({0: 2, 1: -5, 2: 1})
+    evaluate([f], -5)

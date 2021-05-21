@@ -436,6 +436,9 @@ class Polynomial(Function):
         first = True
         insert_minus = False
         for key, value in self.constants.items():
+            if first and value < 0:
+                insert_minus = True
+            first = False
             if value == 0:
                 continue
             operator = " + " if value > 0 else " - "
@@ -444,9 +447,6 @@ class Polynomial(Function):
                 s += operator + v
                 continue
             s += operator + v + "x^" + str(key)
-            if first and value < 0:
-                insert_minus = True
-            first = False
         return ("-" if insert_minus else "") + s[3:]
 
 
@@ -458,6 +458,9 @@ class e_function(Function):
 
     def get_derivative(self):
         return self
+
+    def get_tex_representation(self):
+        return "e^{x}"  # necessary when called from a chained function
 
     def __str__(self):
         return "e^x"
