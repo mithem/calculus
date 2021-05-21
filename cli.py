@@ -63,6 +63,7 @@ def evaluate():
     if ask("Create & view more functions", default=False):
         main()
     else:
+        ask_to_add_taylor_polynomial()
         min_x = prompt("Min x", expect=float)
         max_x = prompt("Max x", expect=float, optional=True, fast=False)
         delta = prompt("Evaluation delta", expect=float, optional=True,
@@ -110,6 +111,24 @@ def prompt(question: str, q=True, expect=str, optional=False, fast=True):
         if optional:
             return None
         return prompt(question, q, expect)
+
+
+def ask_to_add_taylor_polynomial():
+    add_taylor = ask("Add taylor polynomial of some already created function",
+                     default=False)
+    try:
+        if add_taylor:
+            i = prompt("\n".join([f"{i} - {str(functions[i])}" for i in
+                                  range(len(functions))]) + "\nChoose function to add taylor \
+    polynomial for", False, expect=int)
+            n = prompt("Degree of the taylor polynomial", True, expect=int)
+            x = prompt("x value for taylor polynomial", True, expect=float)
+            f = functions[i].get_taylor_polynomial(n, x)
+            functions.append(f)
+            ask_to_add_taylor_polynomial()
+    except Exception as e:
+        print(e)
+        ask_to_add_taylor_polynomial()
 
 
 def menu_constant():

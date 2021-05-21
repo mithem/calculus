@@ -44,7 +44,7 @@ class Function:
         if x != 0:
             return ChainedFunction(taylor_polynomial,
                                    FunctionSubtraction(Linear(1), Constant(x)))
-            return taylor_polynomial
+        return taylor_polynomial
 
     def get_tex_representation(self):
         return str(self)
