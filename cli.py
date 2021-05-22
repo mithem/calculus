@@ -114,6 +114,8 @@ def prompt(question: str, q=True, expect=str, optional=False, fast=True):
 
 
 def ask_to_add_taylor_polynomial():
+    if fast_mode:
+        return
     add_taylor = ask("Add taylor polynomial of some already created function",
                      default=False)
     try:
