@@ -59,6 +59,16 @@ def remove_from_contexts(c: str):
     raise ContextNotFoundError()
 
 
+def analyze_functions():
+    function = let_user_select_function("to calculate roots for")
+    try:
+        roots = function.roots()
+    except Exception as e:
+        print(e)
+        return []
+    return roots
+
+
 def evaluate():
     if ask("Create & view more functions", default=False):
         main()
@@ -68,7 +78,17 @@ def evaluate():
         max_x = prompt("Max x", expect=float, optional=True, fast=False)
         delta = prompt("Evaluation delta", expect=float, optional=True,
                        fast=False)
-        run.evaluate(functions, min_x=min_x, max_x=max_x, delta=delta)
+        points = []
+        try:
+            if ask("Analyze functions"):
+                points = analyze_functions()
+        except Exception as e:
+            print(e)
+            points = []
+        if points is None:
+            points = []
+        run.evaluate(functions, min_x=min_x, max_x=max_x,
+                     delta=delta, points=points)
 
 
 def get_context_str():
@@ -113,6 +133,22 @@ def prompt(question: str, q=True, expect=str, optional=False, fast=True):
         return prompt(question, q, expect)
 
 
+def let_user_select_function(intention: Union[str, None]) -> Function:
+    try:
+        if len(functions) == 1:
+            return functions[0]
+        i = prompt("\n".join([f"{i} - {str(functions[i])}" for i in
+                              range(len(functions))]) + "\nChoose function" +
+                   (" " + intention if intention is not None else ""), False,
+                   expect=int)
+        return functions[i]
+    except Exception as e:
+        print(e)
+        if len(functions) == 0:
+            return None
+        return functions[0]
+
+
 def ask_to_add_taylor_polynomial():
     if fast_mode:
         return
@@ -120,12 +156,10 @@ def ask_to_add_taylor_polynomial():
                      default=False)
     try:
         if add_taylor:
-            i = prompt("\n".join([f"{i} - {str(functions[i])}" for i in
-                                  range(len(functions))]) + "\nChoose function to add taylor \
-    polynomial for", False, expect=int)
+            function = let_user_select_function("to add taylor polynomial for")
             n = prompt("Degree of the taylor polynomial", True, expect=int)
             x = prompt("x value for taylor polynomial", True, expect=float)
-            f = functions[i].get_taylor_polynomial(n, x)
+            f = function.get_taylor_polynomial(n, x)
             functions.append(f)
             ask_to_add_taylor_polynomial()
     except Exception as e:

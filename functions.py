@@ -49,6 +49,12 @@ class Function:
     def get_tex_representation(self):
         return str(self)
 
+    def roots(self, x_min: Union[float, None] = None, x_max: Union[float, None] = None) -> List[float]:
+        raise NotImplementedError("root calculation not implemented")
+
+    def x_calc(self, y: float, x_min: Union[float, None], x_max: Union[float, None]):
+        raise NotImplementedError("x_calc not implemented")
+
 
 class ChainedFunction(Function):
     """f(g(x))"""
@@ -341,6 +347,14 @@ class Linear(Function):
     def get_tex_representation(self):
         return str(self)
 
+    def roots(self, x_min: Union[float, None] = None, x_max: Union[float, None] = None) -> List[float]:
+        return [0.0]
+
+    def x_calc(self, y: float, x_min: Union[float, None], x_max: Union[float, None]) -> List[float]:
+        # y = cx
+        # x = y/c
+        return [y / self.constant]
+
     def __init__(self, constant: float):
         self.constant = constant
 
@@ -426,6 +440,16 @@ class Polynomial(Function):
             s = s.replace(f"{c}e{e}", c + r"\cdot 10^{" + e + "}")
         return s
 
+    def roots(self, x_min: Union[float, None] = None, x_max: Union[float, None] = None) -> List[float]:
+        for n in self.constants.keys():
+            if n < 0:
+                raise ValueError("Function includes negative exponents which \
+is not supported to compute roots for.")
+        coefficients = [None for _ in range(len(self.constants))]
+        for n, c in self.constants.items():
+            coefficients[n] = c
+        return list(np.polynomial.polynomial.polyroots(np.array(coefficients)))
+
     def __init__(self, constants: Dict[int, float]):
         self.constants = {}
         for key in sorted(constants):
@@ -462,6 +486,9 @@ class e_function(Function):
     def get_tex_representation(self):
         return "e^{x}"  # necessary when called from a chained function
 
+    def roots(self, x_min: Union[float, None] = None, x_max: Union[float, None] = None) -> List[float]:
+        return []
+
     def __str__(self):
         return "e^x"
 
@@ -486,6 +513,9 @@ class natural_log(Function):
             return self
         return self.get_derivative().get_nth_indefinite_integral(n - 1)
 
+    def roots(self, x_min: Union[float, None] = None, x_max: Union[float, None] = None) -> List[float]:
+        return [1.0]
+
     def __str__(self):
         return "ln(x)"
 
@@ -500,6 +530,17 @@ class Sin(Function):
 
     def get_indefinite_integral(self):
         return FunctionMultiplication(-1, Cos())
+
+    def roots(self, x_min: Union[float, None] = None, x_max: Union[float, None] = None) -> List[float]:
+        roots = []
+        if x_min is None:
+            raise ValueError(
+                "x_min & x_max both needed to return roots of Sin function")
+        # that's called recycling, I guess
+        for x in np.linspace(x_min, x_max, _standard_h):
+            if x % np.pi < pow(10, -20):
+                roots.append(x)
+        return roots
 
     def __str__(self):
         return "sin(x)"

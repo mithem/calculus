@@ -1,15 +1,29 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import time
+from typing import List, Tuple, Union
 
 
-def evaluate(functions, min_x: float, max_x: float = None,
-             delta: float = None):
+def evaluate(functions, min_x: float,
+             max_x: float = None, delta: float = None,
+             points: List[Union[Tuple[float, float], float]] = []):
     t1 = time.time()
     if max_x is None:
         max_x = -min_x
     if delta is None:
         delta = 0.01
+
+    x_points = []
+    y_points = []
+    for point in points:
+        if type(point) == float or type(point) == np.float64:
+            x = point
+            y = functions[0].evaluate(x)
+        else:
+            x = point[0]
+            y = point[1]
+        x_points.append(x)
+        y_points.append(y)
 
     np_a = list(np.arange(min_x, max_x, delta))
     x_values = list(map(lambda x: float(x), np_a))
@@ -40,11 +54,13 @@ def evaluate(functions, min_x: float, max_x: float = None,
     axes = plt.gca()
     axes.set_ylim([lim_min_y, lim_max_y])
 
+    axes.scatter(x_points, y_points)
+
     # for this example, you'll need to configure the matplotlib window to use
     # sensible y-axis marks
     for i in range(len(functions)):
-        plt.plot(x_values, results[i], label="$%s$" %
-                 functions[i].get_tex_representation())
+        axes.plot(x_values, results[i], label="$%s$" %
+                  functions[i].get_tex_representation())
 
     plt.legend()
     t2 = time.time()
@@ -53,6 +69,8 @@ def evaluate(functions, min_x: float, max_x: float = None,
 
 
 def run():
-    from functions import Linear, Polynomial, FunctionProduct
+    from functions import Linear, Polynomial, FunctionProduct, Sin
+    print(Sin().roots(-10, 10))
     f = Polynomial({0: 2, 1: -5, 2: 1})
-    evaluate([f], -5)
+    roots = f.roots()
+    evaluate([f], -5, points=roots)
